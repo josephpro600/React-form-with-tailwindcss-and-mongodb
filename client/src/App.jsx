@@ -1,4 +1,8 @@
+
 import { useState } from "react";
+
+// Get the API URL from the Vercel environment variable
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const [formData, setFormData] = useState({
@@ -30,7 +34,17 @@ function App() {
     setIsError(false);
 
     try {
-      const response = await fetch("http://localhost:5000/api/users", {
+      // Check whether the API URL is configured
+      if (!API_BASE_URL) {
+        throw new Error(
+          "API URL is missing. Please configure VITE_API_URL in Vercel."
+        );
+      }
+
+      // Remove trailing slash if present
+      const apiUrl = `${API_BASE_URL.replace(/\/+$/, "")}/users`;
+
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -38,15 +52,22 @@ function App() {
         body: JSON.stringify(formData)
       });
 
-      const result = await response.json();
+      // Read the server response safely
+      const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(result.message || "Registration failed");
+        throw new Error(
+          result.message || `Registration failed. Server returned ${response.status}.`
+        );
       }
 
-      setMessage(result.message || "Student registered successfully!");
+      setMessage(
+        result.message || "Student registered successfully!"
+      );
 
-      // Clear form
+      setIsError(false);
+
+      // Clear form after successful registration
       setFormData({
         firstName: "",
         lastName: "",
@@ -54,9 +75,20 @@ function App() {
         age: "",
         course: ""
       });
+
     } catch (error) {
+      console.error("Registration error:", error);
+
       setIsError(true);
-      setMessage(error.message);
+
+      if (error instanceof TypeError) {
+        setMessage(
+          "Unable to connect to the backend. Check your Render server and CORS configuration."
+        );
+      } else {
+        setMessage(error.message || "Something went wrong.");
+      }
+
     } finally {
       setLoading(false);
     }
@@ -75,12 +107,13 @@ function App() {
           <h1 className="text-2xl font-bold text-gray-900">
             Student Registration
           </h1>
+
           <p className="text-sm text-gray-500">
             Fill in the details below to enroll
           </p>
         </div>
 
-        {/* First & Last Name side-by-side on larger screens */}
+        {/* First and Last Name */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             type="text"
@@ -103,6 +136,7 @@ function App() {
           />
         </div>
 
+        {/* Email */}
         <input
           type="email"
           name="email"
@@ -113,6 +147,7 @@ function App() {
           className={inputStyle}
         />
 
+        {/* Age */}
         <input
           type="number"
           name="age"
@@ -122,6 +157,7 @@ function App() {
           className={inputStyle}
         />
 
+        {/* Course */}
         <select
           name="course"
           value={formData.course}
@@ -132,11 +168,21 @@ function App() {
           <option value="" disabled>
             Select Course
           </option>
-          <option value="Software Development">Software Development</option>
-          <option value="Networking">Networking</option>
-          <option value="Database Management">Database Management</option>
+
+          <option value="Software Development">
+            Software Development
+          </option>
+
+          <option value="Networking">
+            Networking
+          </option>
+
+          <option value="Database Management">
+            Database Management
+          </option>
         </select>
 
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading}
@@ -145,6 +191,7 @@ function App() {
           {loading ? "Saving..." : "Register Student"}
         </button>
 
+        {/* Success and Error Messages */}
         {message && (
           <div
             className={`p-3 rounded-lg text-sm text-center font-medium ${
